@@ -9,12 +9,10 @@ default-run = "launcher"
 path = "src/main_launcher.rs"
 name = "launcher"
 
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
-
 [dependencies]
 cottontail = { path = "../cottontail"}
 gif = "0.10.0"
 indexmap = "1.6.1"
 rayon = "1.5.0"
+color-art = "0.3"
 
