@@ -398,37 +398,6 @@ pub fn collect_files_by_glob_pattern(root_folder: &str, glob_pattern: &str) -> V
         .collect()
 }
 
-// Returns stdout and stderr
-pub fn run_systemcommand(
-    command: &str,
-    print_command: bool,
-) -> Result<easy_process::Output, String> {
-    let result = easy_process::run(command);
-    if let Ok(output) = result {
-        let result = format!(
-            "> {}\nstdout: '{}'\nstderr: '{}'",
-            command, output.stdout, output.stderr,
-        );
-        Ok(output)
-    } else {
-        let error = result.unwrap_err();
-        match error {
-            easy_process::Error::Failure(error_status, output) => Err(format!(
-                "Failed command:\n'{}'\nstatus: '{}'\nstdout: '{}'\nstderr: '{}'",
-                command, error_status, output.stdout, output.stderr
-            )),
-            easy_process::Error::Io(error) => Err(format!(
-                "Unable to execute command:\n'{}'\n{}",
-                command, error
-            )),
-        }
-    }
-}
-
-// Returns stdout and stderr
-pub fn run_systemcommand_fail_on_error(command: &str, print_command: bool) -> easy_process::Output {
-    run_systemcommand(command, print_command).unwrap_or_else(|err| panic!("{}", err))
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Appdata

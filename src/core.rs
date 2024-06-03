@@ -239,16 +239,6 @@ pub fn panic_message_split_to_message_and_location(
     }
 }
 
-pub fn panic_set_hook_wait_for_keypress() {
-    std::panic::set_hook(Box::new(|panic_info| {
-        let (message, location) = panic_message_split_to_message_and_location(panic_info);
-
-        // Wait for keypress
-        let mut line = String::new();
-        let _ = std::io::stdin().read_line(&mut line).ok();
-    }));
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Transmutation convenience functions
 

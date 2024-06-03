@@ -11,7 +11,7 @@ use math::{block_centered_in_block, ceil_to_multiple_of_target_i32, floor_to_mul
 use rayon::prelude::*;
 
 use core::platform::{collect_files_by_extension_recursive, path_exists, path_join, path_to_extension, path_to_filename_without_extension, path_without_filename};
-use std::fs::File;
+use std::{fs::File, time::Instant};
 use std::collections::HashMap;
 use color_art::{distance, Color as ArtColor};
 
@@ -66,33 +66,27 @@ fn get_executable_dir() -> String {
 ///
 /// This returns:
 /// "C:\bin\example_image_centered"
-fn get_image_output_dir(image_filepath: &str, output_dir_suffix: &str) -> String {
+fn get_image_output_dir(image_filepath: &str) -> String {
     let image_filename = path_to_filename_without_extension(image_filepath);
     let output_dir_root = get_executable_dir();
-    if output_dir_suffix.is_empty() {
-        path_join(&output_dir_root, &image_filename)
-    } else {
-        path_join(
-            &output_dir_root,
-            &(image_filename + "_" + output_dir_suffix),
-        )
-    }
+
+    path_join(&output_dir_root, &image_filename)
 }
 
 // NOTE: This is for quicker testing to keep images open in imageviewer
 #[cfg(debug_assertions)]
-fn create_image_output_dir(image_filepath: &str, output_dir_suffix: &str) {
+fn create_image_output_dir(image_filepath: &str) {
     use core::platform::path_exists;
 
-    let output_dir = get_image_output_dir(image_filepath, output_dir_suffix);
+    let output_dir = get_image_output_dir(image_filepath);
     if !path_exists(&output_dir) {
         std::fs::create_dir_all(&output_dir)
             .expect(&format!("Cannot create directory '{}'", &output_dir));
     }
 }
 
-fn get_image_output_filepath(image_filepath: &str, output_dir_suffix: &str) -> String {
-    let output_dir = get_image_output_dir(image_filepath, output_dir_suffix);
+fn get_image_output_filepath(image_filepath: &str) -> String {
+    let output_dir = get_image_output_dir(image_filepath);
     let image_filename = path_to_filename_without_extension(image_filepath);
     path_join(&output_dir, &image_filename)
 }
@@ -510,7 +504,6 @@ fn create_cross_stitch_pattern(
     font_segment_index_indicator: &BitmapFont,
     image_filepath: &str,
     output_filename_suffix: &str,
-    output_dir_suffix: &str,
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
     segment_index: Option<usize>,
     logical_first_coordinate_x: i32,
@@ -732,7 +725,7 @@ fn create_cross_stitch_pattern(
     };
 
     // Write out png image
-    let output_filepath = get_image_output_filepath(&image_filepath, output_dir_suffix)
+    let output_filepath = get_image_output_filepath(&image_filepath)
         + "_"
         + output_filename_suffix
         + ".png";
@@ -745,7 +738,6 @@ fn create_cross_stitch_pattern_set(
     font_segment_index_indicator: &BitmapFont,
     image_filepath: &str,
     output_filename_suffix: &str,
-    output_dir_suffix: &str,
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
     segment_index: Option<usize>,
     logical_first_coordinate_x: i32,
@@ -761,7 +753,6 @@ fn create_cross_stitch_pattern_set(
                 font_segment_index_indicator,
                 &image_filepath,
                 &("cross_stitch_colorized_".to_owned() + output_filename_suffix),
-                output_dir_suffix,
                 &color_mappings,
                 segment_index,
                 logical_first_coordinate_x,
@@ -779,7 +770,6 @@ fn create_cross_stitch_pattern_set(
                 font_segment_index_indicator,
                 &image_filepath,
                 &("cross_stitch_".to_owned() + output_filename_suffix),
-                output_dir_suffix,
                 &color_mappings,
                 segment_index,
                 logical_first_coordinate_x,
@@ -797,7 +787,6 @@ fn create_cross_stitch_pattern_set(
                 font_segment_index_indicator,
                 &image_filepath,
                 &("cross_stitch_colorized_no_symbols_".to_owned() + output_filename_suffix),
-                output_dir_suffix,
                 &color_mappings,
                 segment_index,
                 logical_first_coordinate_x,
@@ -816,7 +805,6 @@ fn create_cross_stitch_pattern_set(
                     font_segment_index_indicator,
                     &image_filepath,
                     &("paint_by_numbers_".to_owned() + output_filename_suffix),
-                    output_dir_suffix,
                     &color_mappings,
                     segment_index,
                     logical_first_coordinate_x,
@@ -983,8 +971,6 @@ fn create_patterns_dir(
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
     stitch_colors_mapping: &HashMap<PixelRGBA, &str>,
 ) {
-    let output_dir_suffix = "";
-
     let (segment_images, segment_coordinates) =
         image.to_segments(SPLIT_SEGMENT_WIDTH, SPLIT_SEGMENT_HEIGHT);
 
@@ -995,7 +981,6 @@ fn create_patterns_dir(
                 image.dim(),
                 &color_mappings,
                 &image_filepath,
-                output_dir_suffix,
                 &resources.font,
                 &segment_coordinates,
                 stitch_colors_mapping
@@ -1010,7 +995,6 @@ fn create_patterns_dir(
                 &resources.font_big,
                 &image_filepath,
                 "complete",
-                output_dir_suffix,
                 &color_mappings,
                 None,
                 0,
@@ -1036,7 +1020,6 @@ fn create_patterns_dir(
                         &resources.font_big,
                         &image_filepath,
                         &format!("segment_{}", segment_index + 1),
-                        output_dir_suffix,
                         &color_mappings,
                         Some(segment_index + 1),
                         label_start_x,
@@ -1056,7 +1039,6 @@ fn create_patterns_dir_centered(
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
     stitch_colors_mapping: &HashMap<PixelRGBA, &str>,
 ) {
-    let output_dir_suffix = "centered";
     let image_center_x = make_even_upwards(image.width) / 2;
     let image_center_y = make_even_upwards(image.height) / 2;
 
@@ -1070,7 +1052,6 @@ fn create_patterns_dir_centered(
                 image.dim(),
                 &color_mappings,
                 &image_filepath,
-                output_dir_suffix,
                 &resources.font,
                 &segment_coordinates,
                 stitch_colors_mapping
@@ -1085,7 +1066,6 @@ fn create_patterns_dir_centered(
                 &resources.font_big,
                 &image_filepath,
                 "complete",
-                output_dir_suffix,
                 &color_mappings,
                 None,
                 -image_center_x,
@@ -1113,7 +1093,6 @@ fn create_patterns_dir_centered(
                         &resources.font_big,
                         &image_filepath,
                         &format!("segment_{}", segment_index + 1),
-                        output_dir_suffix,
                         &color_mappings,
                         Some(segment_index + 1),
                         logical_first_coordinate_x,
@@ -1130,7 +1109,6 @@ fn create_cross_stitch_pattern_preview(
     bitmap: &Bitmap,
     image_filepath: &str,
     output_filename_suffix: &str,
-    output_dir_suffix: &str,
     resources: &Resources,
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
 ) {
@@ -1166,12 +1144,7 @@ fn create_cross_stitch_pattern_preview(
                 .blit_to(&mut background_layer, pos, true);
         }
     }
-    // Write out png image
-    let output_filepath = get_image_output_filepath(&image_filepath, output_dir_suffix)
-        + "_"
-        + output_filename_suffix
-        + "_background.png";
-    Bitmap::write_to_png_file(&background_layer, &output_filepath);
+
 
     // Stitches only
     let mut colored_stitches_layer = Bitmap::new(
@@ -1202,15 +1175,6 @@ fn create_cross_stitch_pattern_preview(
             }
         }
     }
-    // Write out png image
-    let output_filepath = get_image_output_filepath(&image_filepath, output_dir_suffix)
-        + "_"
-        + output_filename_suffix
-        + "_stitches.png";
-    Bitmap::write_to_png_file(
-        &colored_stitches_layer.to_unpremultiplied_alpha(),
-        &output_filepath,
-    );
 
     // Combined
     let mut combined = background_layer;
@@ -1221,7 +1185,7 @@ fn create_cross_stitch_pattern_preview(
         ColorBlendMode::Normal,
     );
     // Write out png image
-    let output_filepath = get_image_output_filepath(&image_filepath, output_dir_suffix)
+    let output_filepath = get_image_output_filepath(&image_filepath)
         + "_"
         + output_filename_suffix
         + ".png";
@@ -1234,8 +1198,6 @@ fn create_preview_dir(
     resources: &Resources,
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
 ) {
-    let output_dir_suffix = "preview";
-
     rayon::scope(|scope| {
         // Create stitched preview
         scope.spawn(|_| {
@@ -1243,7 +1205,6 @@ fn create_preview_dir(
                 &image,
                 &image_filepath,
                 "complete",
-                output_dir_suffix,
                 resources,
                 &color_mappings,
             );
@@ -1361,7 +1322,6 @@ fn create_cross_stitch_legend(
     image_dimensions: Vec2i,
     color_mappings: &IndexMap<PixelRGBA, ColorInfo>,
     image_filepath: &str,
-    output_dir_suffix: &str,
     font: &BitmapFont,
     segment_layout_indices: &[Vec2i],
     stitch_colors_mapping: &HashMap<PixelRGBA, &str>
@@ -1448,7 +1408,7 @@ fn create_cross_stitch_legend(
 
     // Write out png image
     let output_filepath =
-        get_image_output_filepath(&image_filepath, output_dir_suffix) + "_legend.png";
+        get_image_output_filepath(&image_filepath) + "_legend.png";
     Bitmap::write_to_png_file(&final_image, &output_filepath);
 }
 
@@ -1457,6 +1417,7 @@ fn create_cross_stitch_legend(
 
 
 fn main() {
+    let now = Instant::now();
     let (font, font_big) = load_fonts();
     let symbols = collect_symbols();
     let symbols_alphanum = create_alphanumeric_symbols(&font);
@@ -1932,9 +1893,9 @@ fn main() {
 
 
     for image_filepath in get_image_filepaths_from_commandline() {
-        create_image_output_dir(&image_filepath, "");
-        create_image_output_dir(&image_filepath, "centered");
-        create_image_output_dir(&image_filepath, "preview");
+        create_image_output_dir(&image_filepath);
+        create_image_output_dir(&image_filepath);
+        create_image_output_dir(&image_filepath);
 
         let mut image = open_image(&image_filepath);
         image = convert_image(&image, &stitch_colors_mapping);
@@ -1960,6 +1921,5 @@ fn main() {
         });
     }
 
-    // #[cfg(not(debug_assertions))]
-    // show_messagebox("Pixie Stitch", "Finished creating patterns. Enjoy!", false);
+    println!("Conversion done in {} secs", now.elapsed().as_secs());
 }
